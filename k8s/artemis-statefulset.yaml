@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: artemis
+  namespace: openmq
+spec:
+  serviceName: artemis
+  replicas: 3
+  selector:
+    matchLabels: {app: artemis}
+  template:
+    metadata: {labels: {app: artemis}}
+    spec:
+      containers:
+      - name: artemis
+        image: apache/artemis:2.57.0
+        ports:
+        - {name: stomp, containerPort: 61613}
+        - {name: core, containerPort: 61616}
+        - {name: amqp, containerPort: 5672}
+        - {name: http, containerPort: 8161}
+        env:
+        - {name: ARTEMIS_USER, value: artemis}
+        - {name: ARTEMIS_PASSWORD, valueFrom: {secretKeyRef: {name: openmq-secrets, key: artemis-password}}}
+        - {name: ANONYMOUS_LOGIN, value: "false"}
+        - {name: EXTRA_ARGS, value: "--http-host 0.0.0.0 --relax-jolokia"}
+        volumeMounts:
+        - {name: data, mountPath: /var/lib/artemis-instance}
+  volumeClaimTemplates:
+  - metadata: {name: data}
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests: {storage: 10Gi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: artemis
+  namespace: openmq
+spec:
+  clusterIP: None
+  selector: {app: artemis}
+  ports:
+  - {name: stomp, port: 61613}
+  - {name: core, port: 61616}
+  - {name: amqp, port: 5672}
+  - {name: http, port: 8161}

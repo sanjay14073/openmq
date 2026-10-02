@@ -1,0 +1,57 @@
+services:
+  artemis:
+    image: apache/artemis:2.57.0
+    container_name: openmq-artemis
+    environment:
+      ARTEMIS_USER: artemis
+      ARTEMIS_PASSWORD: artemis
+      ANONYMOUS_LOGIN: "false"
+      EXTRA_ARGS: "--http-host 0.0.0.0 --relax-jolokia"
+    ports:
+      - "61613:61613"
+      - "61616:61616"
+      - "5672:5672"
+      - "8161:8161"
+    volumes:
+      - artemis-data:/var/lib/artemis-instance
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8161/console/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build: ./backend
+    container_name: openmq-api
+    environment:
+      ADMIN_API_KEY: ${ADMIN_API_KEY:-dev-admin-key}
+      DATABASE_URL: sqlite+aiosqlite:///./data/openmq.db
+      ARTEMIS_MANAGEMENT_URL: http://artemis:8161/console/jolokia
+      ARTEMIS_ADMIN_USER: artemis
+      ARTEMIS_ADMIN_PASSWORD: artemis
+      CORS_ORIGINS: http://localhost:3000
+      DEFAULT_BROKER_NAME: broker-1
+      DEFAULT_BROKER_HOST: localhost
+      DEFAULT_BROKER_INTERNAL_HOST: artemis
+      DEFAULT_BROKER_STOMP_PORT: 61613
+      DEFAULT_BROKER_MANAGEMENT_URL: http://artemis:8161/console/jolokia
+      DEFAULT_BROKER_MESSAGING_HOST: localhost
+    depends_on:
+      artemis:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      - api-data:/app/data
+
+  ui:
+    build: ./frontend
+    container_name: openmq-ui
+    depends_on:
+      - api
+    ports:
+      - "3000:80"
+
+volumes:
+  artemis-data:
+  api-data:

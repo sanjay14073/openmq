@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openmq-api
+  namespace: openmq
+spec:
+  replicas: 2
+  selector:
+    matchLabels: {app: openmq-api}
+  template:
+    metadata: {labels: {app: openmq-api}}
+    spec:
+      containers:
+      - name: api
+        image: your-docker-user/openmq-api:latest
+        ports: [{containerPort: 8000}]
+        env:
+        - {name: ADMIN_API_KEY, valueFrom: {secretKeyRef: {name: openmq-secrets, key: admin-api-key}}}
+        - {name: ARTEMIS_MANAGEMENT_URL, value: "http://artemis-0:8161/console/jolokia"}
+        - {name: ARTEMIS_ADMIN_USER, value: "artemis"}
+        - {name: ARTEMIS_ADMIN_PASSWORD, valueFrom: {secretKeyRef: {name: openmq-secrets, key: artemis-password}}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openmq-api
+  namespace: openmq
+spec:
+  selector: {app: openmq-api}
+  ports: [{port: 8000,targetPort:8000}]
